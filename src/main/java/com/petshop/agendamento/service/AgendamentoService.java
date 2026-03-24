@@ -13,9 +13,11 @@ import java.util.List;
 public class AgendamentoService {
 
     private final AgendamentoRepository repository;
+    private final TelegramService telegramService;
 
-    public AgendamentoService(AgendamentoRepository repository) {
+    public AgendamentoService(AgendamentoRepository repository, TelegramService telegramService) {
         this.repository = repository;
+        this.telegramService = telegramService;
     }
 
     public Agendamento criarAgendamento(Agendamento agendamento) {
@@ -55,7 +57,9 @@ public class AgendamentoService {
 
         agendamento.setStatus(StatusAgendamento.PENDENTE);
 
-        return repository.save(agendamento);
+        Agendamento salvo = repository.save(agendamento);
+        telegramService.notificarNovoAgendamento(salvo);
+        return salvo;
     }
 
     public List<Agendamento> listar() {
