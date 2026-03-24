@@ -13,7 +13,8 @@ import java.util.Map;
 @RequestMapping("/telegram")
 public class TelegramWebhookController {
 
-    private static final String ANSWER_URL = "https://api.telegram.org/bot%s/answerCallbackQuery";
+    private static final String ANSWER_URL  = "https://api.telegram.org/bot%s/answerCallbackQuery";
+    private static final String MESSAGE_URL = "https://api.telegram.org/bot%s/sendMessage";
 
     @Value("${telegram.bot.token}")
     private String token;
@@ -36,21 +37,28 @@ public class TelegramWebhookController {
             String data = (String) callbackQuery.get("data");
             if (data == null || !data.contains(":")) return ResponseEntity.ok().build();
 
+            @SuppressWarnings("unchecked")
+            Map<String, Object> message = (Map<String, Object>) callbackQuery.get("message");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> chat = (Map<String, Object>) message.get("chat");
+            Object chatId = chat.get("id");
+
             String[] partes = data.split(":", 2);
             String acao = partes[0];
             Long id = Long.parseLong(partes[1]);
 
-            String textoResposta = null;
+            String textoMensagem = null;
             if ("confirmar".equals(acao)) {
                 agendamentoService.confirmarAgendamento(id);
-                textoResposta = "✅ Confirmado!";
+                textoMensagem = "✅ *Agendamento #" + id + " confirmado!*\nO cliente será atendido no horário marcado.";
             } else if ("cancelar".equals(acao)) {
                 agendamentoService.cancelarAgendamento(id);
-                textoResposta = "❌ Cancelado!";
+                textoMensagem = "❌ *Agendamento #" + id + " cancelado.*\nO horário foi liberado.";
             }
 
-            if (textoResposta != null) {
-                responderCallback(callbackQueryId, textoResposta);
+            if (textoMensagem != null) {
+                responderCallback(callbackQueryId);
+                enviarMensagem(chatId, textoMensagem);
             }
         } catch (Exception e) {
             // Ignora updates inesperados ou malformados
@@ -59,12 +67,17 @@ public class TelegramWebhookController {
         return ResponseEntity.ok().build();
     }
 
-    private void responderCallback(String callbackQueryId, String texto) {
+    private void responderCallback(String callbackQueryId) {
         Map<String, Object> body = new HashMap<>();
         body.put("callback_query_id", callbackQueryId);
-        body.put("text", texto);
+        restTemplate.postForObject(String.format(ANSWER_URL, token), body, Map.class);
+    }
 
-        String url = String.format(ANSWER_URL, token);
-        restTemplate.postForObject(url, body, Map.class);
+    private void enviarMensagem(Object chatId, String texto) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("chat_id", chatId);
+        body.put("text", texto);
+        body.put("parse_mode", "Markdown");
+        restTemplate.postForObject(String.format(MESSAGE_URL, token), body, Map.class);
     }
 }
