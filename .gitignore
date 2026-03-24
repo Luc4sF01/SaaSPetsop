@@ -6,7 +6,6 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 
 # Arquivos sensíveis - NUNCA subir pro GitHub!
-src/main/resources/application.properties
 src/main/resources/application-prod.properties
 src/main/resources/application-dev.properties
 
